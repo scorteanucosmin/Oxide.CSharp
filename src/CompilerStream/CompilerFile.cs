@@ -1,15 +1,15 @@
-﻿using Oxide.CSharp.Patching;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using Oxide.CSharp.Patching;
 
-namespace ObjectStream.Data
+namespace Oxide.CSharp.CompilerStream
 {
     [Serializable]
     public class CompilerFile
     {
         [NonSerialized]
-        internal readonly static Dictionary<string, CompilerFile> FileCache = new Dictionary<string, CompilerFile>(StringComparer.InvariantCultureIgnoreCase);
+        internal static readonly Dictionary<string, CompilerFile> FileCache = new Dictionary<string, CompilerFile>(StringComparer.InvariantCultureIgnoreCase);
 
         public static CompilerFile CachedReadFile(string directory, string fileName, byte[] data = null)
         {
