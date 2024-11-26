@@ -137,6 +137,29 @@ namespace Oxide.CSharp
                 }
             }
 
+            foreach (Extension extension in Interface.Oxide.GetAllExtensions())
+            {
+                try
+                {
+                    string prefix = $"{extension.Name.ToUpper()}_EXT";
+                    foreach (string directive in extension.GetPreprocessorDirectives())
+                    {
+                        if (!extension.IsGameExtension && !extension.IsCoreExtension && !directive.StartsWith(prefix))
+                        {
+                            Interface.Oxide.LogWarning("Missing extension preprocessor prefix '{0}' for directive '{1}' (by extension '{2}')",
+                                prefix, directive, extension.Name);
+                        }
+
+                        preprocessorList.Add(EscapeSymbolName(directive));
+                    }
+                }
+                catch (Exception exception)
+                {
+                    Interface.Oxide.LogException($"An error occurred processing preprocessor directives for extension `{extension.Name}`",
+                        exception);
+                }
+            }
+
 #if DEBUG
             preprocessorList.Add("DEBUG");
 #endif
