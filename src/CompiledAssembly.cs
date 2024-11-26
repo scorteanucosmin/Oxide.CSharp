@@ -72,7 +72,7 @@ namespace Oxide.Plugins
                     return;
                 }
 
-                LoadedAssembly = Assembly.Load(rawAssembly);
+                LoadedAssembly = Assembly.Load(rawAssembly, Symbols);
                 isLoaded = true;
 
                 foreach (Action<bool> cb in loadCallbacks)
