@@ -1,8 +1,6 @@
 ﻿extern alias References;
 
 using References::Mono.Cecil;
-using System;
-using System.Reflection;
 
 namespace Oxide.CSharp.Patching.Validation
 {

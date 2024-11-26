@@ -1,4 +1,3 @@
-using ObjectStream.Data;
 using Oxide.Core;
 using Oxide.Core.Logging;
 using Oxide.Logging;
@@ -9,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
+using Oxide.CSharp.CompilerStream;
 
 namespace Oxide.Plugins
 {
@@ -35,7 +35,7 @@ namespace Oxide.Plugins
         {
             this.id = id;
             this.callback = callback;
-            this.queuedPlugins = new ConcurrentHashSet<CompilablePlugin>(plugins);
+            queuedPlugins = new ConcurrentHashSet<CompilablePlugin>(plugins);
 
             if (Current == null)
             {
