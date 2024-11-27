@@ -405,12 +405,12 @@ namespace Oxide.CSharp
                             IEnumerable<string> missingRequirements =
                                 compilablePlugin.Requires.Where(name => !compilation.IncludesRequiredPlugin(name));
 
-                            if (missingRequirements.Any())
+                            string[] missingRequirementsArray = missingRequirements.ToArray();
+                            if (missingRequirementsArray.Length > 0)
                             {
-                                compilablePlugin.CompilerErrors =
-                                    $"Missing dependencies: {string.Join(",", missingRequirements.ToArray())}";
-                                Log(LogType.Error,
-                                    $"[{match.Groups["Severity"].Value}][{scriptName}] Missing dependencies: {string.Join(",", missingRequirements.ToArray())}");
+                                compilablePlugin.CompilerErrors = $"Missing dependencies: {string.Join(",", missingRequirementsArray)}";
+
+                                Log(LogType.Error, $"[{match.Groups["Severity"].Value}][{scriptName}] Missing dependencies: {string.Join(",", missingRequirementsArray)}");
                             }
                             else
                             {
@@ -421,15 +421,14 @@ namespace Oxide.CSharp
                         }
                     }
 
-                    CompilationResult result = Constants.Serializer.Deserialize<CompilationResult>(message.Data);
-                    if (result.Data == null || result.Data.Length == 0)
+                    CompilationResult compilationResult = Constants.Serializer.Deserialize<CompilationResult>(message.Data);
+                    if (compilationResult.Data == null || compilationResult.Data.Length == 0)
                     {
                         compilation.Completed();
                     }
                     else
                     {
-                        Interface.Oxide.LogInfo($"Compiler sent an assembly: {result.Name} ({result.Data.Length} bytes)");
-                        compilation.Completed(result.Data, result.Symbols);
+                        compilation.Completed(compilationResult.Data, compilationResult.Symbols);
                     }
 
                     _compilations.Remove(message.Id);
@@ -609,10 +608,8 @@ namespace Oxide.CSharp
                 OutputFile = compilation.name,
                 SourceFiles = sourceFiles.ToArray(),
                 ReferenceFiles = compilation.references.Values.ToArray(),
-                Preprocessor = _preprocessor
-                #if DEBUG
-                , Debug = true
-                #endif
+                Preprocessor = _preprocessor,
+                Debug = Debugger.IsAttached,
             };
 
             CompilerMessage compilerMessage = new CompilerMessage
