@@ -205,8 +205,9 @@ namespace Oxide.Plugins
                     }
                     else
                     {
-                        Interface.Oxide.LogError($"{plugin.Name} plugin requires missing dependencies: {missingRequirements.ToSentence()}");
-                        PluginErrors[plugin.Name] = $"Missing dependencies: {missingRequirements.ToSentence()}";
+                        string sentence = missingRequirements.ToSentence();
+                        Interface.Oxide.LogError($"{plugin.Name} plugin requires missing dependencies: {sentence}");
+                        PluginErrors[plugin.Name] = $"Missing dependencies: {sentence}";
                         PluginLoadingCompleted(plugin);
                     }
                 }

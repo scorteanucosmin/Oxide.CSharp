@@ -62,9 +62,9 @@ namespace Oxide.Plugins
             {
                 if (rawAssembly == null)
                 {
-                    foreach (Action<bool> cb in loadCallbacks)
+                    foreach (Action<bool> loadingCallbacks in loadCallbacks)
                     {
-                        cb(true);
+                        loadingCallbacks(true);
                     }
 
                     loadCallbacks.Clear();
@@ -75,9 +75,9 @@ namespace Oxide.Plugins
                 LoadedAssembly = Assembly.Load(rawAssembly, Symbols);
                 isLoaded = true;
 
-                foreach (Action<bool> cb in loadCallbacks)
+                foreach (Action<bool> loadingCallbacks in loadCallbacks)
                 {
-                    cb(true);
+                    loadingCallbacks(true);
                 }
 
                 loadCallbacks.Clear();
@@ -90,7 +90,8 @@ namespace Oxide.Plugins
         {
             if (isPatching)
             {
-                Interface.Oxide.RootLogger.WriteDebug(LogType.Warning, LogEvent.Compile, "CSharp", $"Already patching plugin assembly: {PluginNames.ToSentence()} (ignoring)");
+                Interface.Oxide.RootLogger.WriteDebug(LogType.Warning, LogEvent.Compile, "CSharp",
+                    $"Already patching plugin assembly: {PluginNames.ToSentence()} (ignoring)");
                 return;
             }
 
