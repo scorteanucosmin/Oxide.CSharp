@@ -11,13 +11,10 @@ namespace Oxide.CSharp.CompilerStream
     {
         private const int DefaultMaxBufferSize = 1024;
 
+        private readonly Pooling.IArrayPool<byte> _arrayPool;
         private NamedPipeServerStream _pipeServer;
-
         private Thread _workerThread;
 
-        private readonly Pooling.IArrayPool<byte> _arrayPool;
-
-        private volatile bool _running;
         private bool _disposed;
         private int _messageId;
 
@@ -26,7 +23,6 @@ namespace Oxide.CSharp.CompilerStream
         public MessageBrokerService()
         {
             _arrayPool = Pooling.ArrayPool<byte>.Shared;
-            _running = true;
         }
 
         public void Start(string pipeName)
@@ -50,7 +46,7 @@ namespace Oxide.CSharp.CompilerStream
 
         private void Worker()
         {
-            while (_running)
+            while (_pipeServer.IsConnected)
             {
                 bool processed = false;
 
@@ -94,8 +90,6 @@ namespace Oxide.CSharp.CompilerStream
             byte[] buffer = _arrayPool.Take(data.Length + sizeof(int));
             try
             {
-                Interface.Oxide.LogInfo($"Sending message to compiler of type: {message.Type}");
-
                 int destinationIndex = data.Length.WriteBigEndian(buffer);
                 Array.Copy(data, 0, buffer, destinationIndex, data.Length);
                 OnWrite(buffer, 0, buffer.Length);
@@ -261,9 +255,9 @@ namespace Oxide.CSharp.CompilerStream
                 return;
             }
 
+            _pipeServer.Disconnect();
             _pipeServer.Dispose();
 
-            _running = false;
             _disposed = true;
 
             try
