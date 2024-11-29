@@ -27,25 +27,18 @@ namespace Oxide.CSharp
 {
     internal class CompilerService
     {
-        private static readonly Regex FileErrorRegex = new Regex(@"^\[(?'Severity'\S+)\]\[(?'Code'\S+)\]\[(?'File'\S+)\] (?'Message'.+)$",
-            RegexOptions.Compiled);
-
-        private static readonly Regex SymbolEscapeRegex = new Regex(@"[^\w\d]", RegexOptions.Compiled);
-
-        private const string BaseUrl = "https://downloads.oxidemod.com/artifacts/Oxide.Compiler/{0}/";
-        private const string CompilerBasicArguments = "-unsafe true --setting:Force true -ms true";
-
         private readonly Hash<int, Compilation> _compilations;
         private readonly Queue<CompilerMessage> _messageQueue = new Queue<CompilerMessage>();
         private Process _compilerProcess;
         private volatile int _lastId;
         private volatile bool _ready;
         private Core.Libraries.Timer.TimerInstance _idleTimer;
-        private MessageBrokerService _messageBrokerService;
+        private MessageBrokerService? _messageBrokerService;
         private readonly string _filePath;
         private string _remoteName;
         private float _startTime;
         private string[] _preprocessor;
+        private readonly string _pipeName;
 
         public bool Installed => File.Exists(_filePath);
 
@@ -54,7 +47,7 @@ namespace Oxide.CSharp
             _compilations = new Hash<int, Compilation>();
             string arc = IntPtr.Size == 8 ? "x64" : "x86";
             _filePath = Path.Combine(Interface.Oxide.RootDirectory, $"Oxide.Compiler");
-            string downloadUrl = string.Format(BaseUrl, extension.Branch);
+            string downloadUrl = string.Format(Constants.CompilerDownloadUrl, extension.Branch);
             switch (Environment.OSVersion.Platform)
             {
                 case PlatformID.Win32NT:
@@ -83,6 +76,7 @@ namespace Oxide.CSharp
             EnvironmentHelper.SetVariable("Path:Configuration", Interface.Oxide.ConfigDirectory);
             EnvironmentHelper.SetVariable("Path:Data", Interface.Oxide.DataDirectory);
             EnvironmentHelper.SetVariable("Path:Libraries", Interface.Oxide.ExtensionDirectory);
+            _pipeName = $"Oxide.Compiler.{Guid.NewGuid()}";
         }
 
         private void ExpireFileCache()
@@ -220,7 +214,7 @@ namespace Oxide.CSharp
 
             Stop(false, "starting new process");
             _startTime = Interface.Oxide.Now;
-            string args = CompilerBasicArguments + $" --parent {Process.GetCurrentProcess().Id} -l:file \"{Path.Combine(Interface.Oxide.LogDirectory, $"oxide.compiler_{DateTime.Now:yyyy-MM-dd}.log")}\"";
+            string args = Constants.CompilerBasicArguments + $" --parent {Process.GetCurrentProcess().Id} --pipe {_pipeName} -l:file \"{Path.Combine(Interface.Oxide.LogDirectory, $"oxide.compiler_{DateTime.Now:yyyy-MM-dd}.log")}\"";
 #if DEBUG
             args += " -v debug";
 #endif
@@ -276,8 +270,9 @@ namespace Oxide.CSharp
                 return false;
             }
 
-            _messageBrokerService = new MessageBrokerService(_compilerProcess.StandardInput.BaseStream, _compilerProcess.StandardOutput.BaseStream);
+            _messageBrokerService = new MessageBrokerService();
             _messageBrokerService.OnMessageReceived += OnMessageReceived;
+            _messageBrokerService.Start(_pipeName);
             ResetIdleTimer();
             Interface.Oxide.LogInfo($"[CSharp] Started Oxide.Compiler v{GetCompilerVersion()} successfully");
             return true;
@@ -354,7 +349,7 @@ namespace Oxide.CSharp
         {
             if (message == null)
             {
-                Stop(true, "invalid message sent");
+                //Stop(true, "invalid message sent");
                 return;
             }
 
@@ -378,7 +373,7 @@ namespace Oxide.CSharp
                         foreach (string line in stdOutput.Split(new[] { '\r', '\n' },
                                      StringSplitOptions.RemoveEmptyEntries))
                         {
-                            Match match = FileErrorRegex.Match(line.Trim());
+                            Match match = Constants.FileErrorRegex.Match(line.Trim());
                             if (!match.Success)
                             {
                                 continue;
@@ -485,6 +480,7 @@ namespace Oxide.CSharp
                         {
                             CompilerMessage compilerMessage = _messageQueue.Dequeue();
                             _compilations[compilerMessage.Id].startedAt = Interface.Oxide.Now;
+
                             _messageBrokerService.SendMessage(compilerMessage);
                         }
                     }
@@ -905,7 +901,7 @@ namespace Oxide.CSharp
         /// <returns></returns>
         private string EscapeSymbolName(string name)
         {
-            return SymbolEscapeRegex.Replace(name, "_");
+            return Constants.SymbolEscapeRegex.Replace(name, "_");
         }
     }
 }
