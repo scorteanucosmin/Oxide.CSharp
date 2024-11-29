@@ -34,19 +34,19 @@ namespace Oxide.Plugins
 
         public override string FileExtension => ".cs";
 
-        private List<CompilablePlugin> compilationQueue = new List<CompilablePlugin>();
-        private CompilerService compiler;
+        private readonly List<CompilablePlugin> _compilationQueue = new List<CompilablePlugin>();
+        private readonly CompilerService _compiler;
 
         public CSharpPluginLoader(CSharpExtension extension)
         {
             Instance = this;
             CSharpPluginLoader.extension = extension;
-            compiler = new CompilerService(extension);
+            _compiler = new CompilerService(extension);
         }
 
         public void OnModLoaded()
         {
-            compiler.Precheck();
+            _compiler.Precheck();
 
             // Include references to all loaded game extensions and any assemblies they reference
             foreach (Core.Extensions.Extension extension in Interface.Oxide.GetAllExtensions())
@@ -77,7 +77,7 @@ namespace Oxide.Plugins
 
         public override IEnumerable<string> ScanDirectory(string directory)
         {
-            bool installed = compiler.Installed;
+            bool installed = _compiler.Installed;
             if (!installed)
             {
                 yield break;
@@ -239,15 +239,15 @@ namespace Oxide.Plugins
                 Compilation.Current.Add(plugin);
                 return;
             }
-            if (compilationQueue.Count < 1)
+            if (_compilationQueue.Count < 1)
             {
                 Interface.Oxide.NextTick(() =>
                 {
-                    CompileAssembly(compilationQueue.ToArray());
-                    compilationQueue.Clear();
+                    CompileAssembly(_compilationQueue.ToArray());
+                    _compilationQueue.Clear();
                 });
             }
-            compilationQueue.Add(plugin);
+            _compilationQueue.Add(plugin);
         }
 
         public void PluginLoadingStarted(CompilablePlugin plugin)
@@ -278,7 +278,7 @@ namespace Oxide.Plugins
 
         private void CompileAssembly(CompilablePlugin[] plugins)
         {
-            compiler.Compile(plugins, compilation =>
+            _compiler.Compile(plugins, compilation =>
             {
                 if (compilation.compiledAssembly == null)
                 {
@@ -316,6 +316,6 @@ namespace Oxide.Plugins
             });
         }
 
-        public void OnShutdown() => compiler.Stop(true, "framework shutting down");
+        public void OnShutdown() => _compiler.Stop(true, "framework shutting down");
     }
 }
