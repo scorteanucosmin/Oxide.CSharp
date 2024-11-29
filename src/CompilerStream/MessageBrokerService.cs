@@ -1,42 +1,42 @@
 ﻿extern alias References;
 using System;
-using System.Collections.Generic;
-using System.IO;
+using System.IO.Pipes;
 using System.Threading;
+using Oxide.Core;
 using Oxide.CSharp.Common;
 
 namespace Oxide.CSharp.CompilerStream
 {
     internal class MessageBrokerService : IDisposable
     {
-        private readonly Stream _input;
+        private const int DefaultMaxBufferSize = 1024;
 
-        private readonly Stream _output;
+        private NamedPipeServerStream _pipeServer;
 
-        private readonly Thread _workerThread;
+        private Thread _workerThread;
 
-        private readonly Queue<CompilerMessage> _messageQueue;
-
-        private readonly Pooling.IArrayPool<byte> _pool;
+        private readonly Pooling.IArrayPool<byte> _arrayPool;
 
         private volatile bool _running;
-
         private bool _disposed;
-
         private int _messageId;
 
         public event Action<CompilerMessage> OnMessageReceived;
 
-        public MessageBrokerService(Stream input, Stream output)
+        public MessageBrokerService()
         {
-            _messageQueue = new Queue<CompilerMessage>();
-            _pool = Pooling.ArrayPool<byte>.Shared;
-            _input = input;
-            _output = output;
-
+            _arrayPool = Pooling.ArrayPool<byte>.Shared;
             _running = true;
+        }
 
-            _workerThread = new Thread(WorkerMethod)
+        public void Start(string pipeName)
+        {
+            _pipeServer = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1,
+                PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+
+            _pipeServer.WaitForConnection();
+
+            _workerThread = new Thread(Worker)
             {
                 CurrentCulture = Thread.CurrentThread.CurrentCulture,
                 CurrentUICulture = Thread.CurrentThread.CurrentUICulture,
@@ -48,6 +48,36 @@ namespace Oxide.CSharp.CompilerStream
             _workerThread.Start();
         }
 
+        private void Worker()
+        {
+            while (_running)
+            {
+                bool processed = false;
+
+                if (OnMessageReceived != null)
+                {
+                    try
+                    {
+                        CompilerMessage? compilerMessage = ReadMessage();
+                        if (compilerMessage != null)
+                        {
+                            OnMessageReceived(compilerMessage);
+                            processed = true;
+                        }
+                    }
+                    catch (Exception exception)
+                    {
+                        Interface.Oxide.LogError($"Error reading message queue: {exception}");
+                    }
+                }
+
+                if (!processed)
+                {
+                    Thread.Sleep(1000);
+                }
+            }
+        }
+
         public void SendMessage(CompilerMessage message)
         {
             if (message == null)
@@ -55,111 +85,122 @@ namespace Oxide.CSharp.CompilerStream
                 throw new ArgumentNullException(nameof(message));
             }
 
-            /*lock (_messageQueue)
-            {
-                _messageQueue.Enqueue(message);
-            }*/
-
             WriteMessage(message);
         }
 
         private void WriteMessage(CompilerMessage message)
         {
-            byte[] sourceArray = Constants.Serializer.Serialize(message);
-            byte[] numArray = _pool.Take(sourceArray.Length + 4);
+            byte[] data = Constants.Serializer.Serialize(message);
+            byte[] buffer = _arrayPool.Take(data.Length + sizeof(int));
             try
             {
-                int destinationIndex = sourceArray.Length.WriteBigEndian(numArray);
-                Array.Copy(sourceArray, 0, numArray, destinationIndex, sourceArray.Length);
-                _input.Write(numArray, 0, numArray.Length);
+                Interface.Oxide.LogInfo($"Sending message to compiler of type: {message.Type}");
+
+                int destinationIndex = data.Length.WriteBigEndian(buffer);
+                Array.Copy(data, 0, buffer, destinationIndex, data.Length);
+                OnWrite(buffer, 0, buffer.Length);
+            }
+            catch (Exception exception)
+            {
+                Interface.Oxide.LogError($"Error sending message to compiler: {exception}");
             }
             finally
             {
-                _pool.Return(numArray);
+                _arrayPool.Return(buffer);
             }
         }
 
-        private CompilerMessage ReadMessage()
+        private CompilerMessage? ReadMessage()
         {
-            byte[] numArray1 = _pool.Take(4);
-            int index1 = 0;
+            byte[] buffer = _arrayPool.Take(sizeof(int));
+            int read = 0;
             try
             {
-                while (index1 < numArray1.Length)
+                while (read < buffer.Length)
                 {
-                    index1 += _output.Read(numArray1, index1, numArray1.Length - index1);
-                    if (index1 == 0)
+                    read += OnRead(buffer, read, buffer.Length - read);
+                    if (read == 0)
                     {
-                        return default;
+                        return null;
                     }
                 }
 
-                int length = numArray1.ReadBigEndian();
-                byte[] numArray2 = _pool.Take(length);
-                int index2 = 0;
+                int length = buffer.ReadBigEndian();
+                byte[] buffer2 = _arrayPool.Take(length);
+                read = 0;
                 try
                 {
-                    while (index2 < length)
+                    while (read < length)
                     {
-                        index2 += _output.Read(numArray2, index2, length - index2);
+                        read += OnRead(buffer2, read, length - read);
                     }
 
-                    return Constants.Serializer.Deserialize<CompilerMessage>(numArray2);
+                    return Constants.Serializer.Deserialize<CompilerMessage>(buffer2);
                 }
                 finally
                 {
-                    _pool.Return(numArray2);
+                    _arrayPool.Return(buffer2);
                 }
+            }
+            catch (Exception exception)
+            {
+                Interface.Oxide.LogError($"Error reading message: {exception}");
+                return null;
             }
             finally
             {
-                _pool.Return(numArray1);
+                _arrayPool.Return(buffer);
             }
         }
 
-        private void WorkerMethod()
+        private void OnWrite(byte[] buffer, int index, int count)
         {
-            while (_running)
+            if (_disposed)
             {
-                bool processed = false;
-                lock (_messageQueue)
-                {
-                    for (int index = 0; index < 3; ++index)
-                    {
-                        if (_messageQueue.Count != 0)
-                        {
-                            WriteMessage(_messageQueue.Dequeue());
-                            processed = true;
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-                }
-
-                if (OnMessageReceived != null)
-                {
-                    for (int index = 0; index < 3; ++index)
-                    {
-                        CompilerMessage message = ReadMessage();
-                        if (message != null)
-                        {
-                            OnMessageReceived(message);
-                            processed = true;
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-                }
-
-                if (!processed)
-                {
-                    Thread.Sleep(500);
-                }
+                throw new ObjectDisposedException(GetType().FullName);
             }
+
+            Validate(buffer, index, count);
+
+            int remaining = count;
+            int written = 0;
+            while (remaining > 0)
+            {
+                int toWrite = Math.Min(DefaultMaxBufferSize, remaining);
+                _pipeServer.Write(buffer, index + written, toWrite);
+                remaining -= toWrite;
+                written += toWrite;
+                _pipeServer.Flush();
+            }
+        }
+
+        private int OnRead(byte[] buffer, int index, int count)
+        {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(GetType().FullName);
+            }
+
+            Validate(buffer, index, count);
+
+            int read = 0;
+            int remaining = count;
+
+            while (remaining > 0)
+            {
+                int toRead = Math.Min(DefaultMaxBufferSize, remaining);
+                int r = _pipeServer.Read(buffer, index + read, toRead);
+
+                if (r == 0 && read == 0)
+                {
+                    return 0;
+                }
+
+                read += r;
+                remaining -= r;
+            }
+
+            return read;
         }
 
         public int SendShutdownMessage()
@@ -189,6 +230,30 @@ namespace Oxide.CSharp.CompilerStream
 
         public void Stop() => Dispose(true);
 
+        private void Validate(byte[] buffer, int index, int count)
+        {
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
+            if (index < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index), "Value must be zero or greater");
+            }
+
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), "Value must be zero or greater");
+            }
+
+            if (index + count > buffer.Length)
+            {
+                throw new ArgumentOutOfRangeException($"{nameof(index)} + {nameof(count)}",
+                    "Attempted to read more than buffer can allow");
+            }
+        }
+
         private void Dispose(bool disposing)
         {
             if (_disposed)
@@ -196,12 +261,10 @@ namespace Oxide.CSharp.CompilerStream
                 return;
             }
 
+            _pipeServer.Dispose();
+
             _running = false;
             _disposed = true;
-            if (disposing)
-            {
-                _messageQueue.Clear();
-            }
 
             try
             {
