@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Oxide.CSharp.CompilerStream
 {
@@ -10,7 +11,7 @@ namespace Oxide.CSharp.CompilerStream
         public CompilerPlatform Platform { get; set; }
         public CompilerFile[] ReferenceFiles { get; set; }
         public string SdkVersion { get; set; }
-        public CompilerFile[] SourceFiles { get; set; }
+        public List<CompilerFile> SourceFiles { get; set; }
         public bool StdLib { get; set; }
         public CompilerTarget Target { get; set; }
         public CompilerLanguageVersion Version { get; set; }

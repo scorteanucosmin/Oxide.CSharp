@@ -8,8 +8,18 @@ namespace Oxide.CSharp.CompilerStream
     [Serializable]
     public class CompilerFile
     {
+        public string Name { get; set; }
+        public byte[] Data { get; set; }
+
         [NonSerialized]
-        internal static readonly Dictionary<string, CompilerFile> FileCache = new Dictionary<string, CompilerFile>(StringComparer.InvariantCultureIgnoreCase);
+        internal DateTime LastRead;
+
+        [NonSerialized]
+        internal bool KeepCached = false;
+
+        [NonSerialized]
+        internal static readonly Dictionary<string, CompilerFile> FileCache =
+            new Dictionary<string, CompilerFile>(StringComparer.InvariantCultureIgnoreCase);
 
         public static CompilerFile CachedReadFile(string directory, string fileName, byte[] data = null)
         {
@@ -51,15 +61,6 @@ namespace Oxide.CSharp.CompilerStream
 
             return file;
         }
-
-        public string Name { get; set; }
-        public byte[] Data { get; set; }
-
-        [NonSerialized]
-        internal DateTime LastRead;
-
-        [NonSerialized]
-        internal bool KeepCached = false;
 
         internal CompilerFile(string name, byte[] data)
         {

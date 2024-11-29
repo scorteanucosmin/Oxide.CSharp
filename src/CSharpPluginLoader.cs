@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Oxide.CSharp.Common;
 
 namespace Oxide.Plugins
 {
@@ -125,7 +126,7 @@ namespace Oxide.Plugins
         /// <param name="name"></param>
         public override void Reload(string directory, string name)
         {
-            if (Regex.Match(directory, @"\\include\b", RegexOptions.IgnoreCase).Success)
+            if (Constants.IncludeRegex.Match(directory).Success)
             {
                 name = $"Oxide.{name}";
                 foreach (CompilablePlugin plugin in plugins.Values)

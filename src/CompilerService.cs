@@ -45,8 +45,9 @@ namespace Oxide.CSharp
         public CompilerService(Extension extension)
         {
             _compilations = new Hash<int, Compilation>();
-            string arc = IntPtr.Size == 8 ? "x64" : "x86";
             _filePath = Path.Combine(Interface.Oxide.RootDirectory, $"Oxide.Compiler");
+            _pipeName = $"Oxide.Compiler.{Guid.NewGuid()}";
+
             string downloadUrl = string.Format(Constants.CompilerDownloadUrl, extension.Branch);
             switch (Environment.OSVersion.Platform)
             {
@@ -55,6 +56,7 @@ namespace Oxide.CSharp
                 case PlatformID.Win32Windows:
                 {
                     _filePath += ".exe";
+                    string arc = IntPtr.Size == 8 ? "x64" : "x86";
                     _remoteName = downloadUrl + $"win-{arc}.Compiler.exe";
                     break;
                 }
@@ -76,7 +78,6 @@ namespace Oxide.CSharp
             EnvironmentHelper.SetVariable("Path:Configuration", Interface.Oxide.ConfigDirectory);
             EnvironmentHelper.SetVariable("Path:Data", Interface.Oxide.DataDirectory);
             EnvironmentHelper.SetVariable("Path:Libraries", Interface.Oxide.ExtensionDirectory);
-            _pipeName = $"Oxide.Compiler.{Guid.NewGuid()}";
         }
 
         private void ExpireFileCache()
@@ -131,7 +132,7 @@ namespace Oxide.CSharp
                 }
             }
 
-            foreach (Extension extension in Interface.Oxide.GetAllExtensions())
+            /*foreach (Extension extension in Interface.Oxide.GetAllExtensions())
             {
                 try
                 {
@@ -152,7 +153,7 @@ namespace Oxide.CSharp
                     Interface.Oxide.LogException($"An error occurred processing preprocessor directives for extension `{extension.Name}`",
                         exception);
                 }
-            }
+            }*/
 
 #if DEBUG
             preprocessorList.Add("DEBUG");
@@ -276,73 +277,6 @@ namespace Oxide.CSharp
             ResetIdleTimer();
             Interface.Oxide.LogInfo($"[CSharp] Started Oxide.Compiler v{GetCompilerVersion()} successfully");
             return true;
-        }
-
-        internal void Stop(bool synchronous, string reason)
-        {
-            _ready = false;
-            Process stoppedProcess = _compilerProcess;
-            if (stoppedProcess == null)
-            {
-                return;
-            }
-
-            _compilerProcess = null;
-            stoppedProcess.Exited -= OnCompilerProcessExited;
-            stoppedProcess.Refresh();
-
-            if (!string.IsNullOrEmpty(reason))
-            {
-                Interface.Oxide.LogInfo($"Shutting down compiler because {reason}");
-            }
-
-            if (!stoppedProcess.HasExited)
-            {
-                _messageBrokerService.SendShutdownMessage();
-
-                if (synchronous)
-                {
-                    if (stoppedProcess.WaitForExit(10000))
-                    {
-                        Interface.Oxide.LogInfo("Compiler shutdown completed");
-                    }
-                    else
-                    {
-                        Interface.Oxide.LogWarning("Compiler failed to gracefully shutdown, killing the process...");
-                        stoppedProcess.Kill();
-                    }
-
-                    stoppedProcess.Close();
-                }
-                else
-                {
-                    ThreadPool.QueueUserWorkItem(_ =>
-                    {
-                        if (stoppedProcess.WaitForExit(10000))
-                        {
-                            Interface.Oxide.LogInfo("Compiler shutdown completed");
-                        }
-                        else
-                        {
-                            Interface.Oxide.LogWarning("Compiler failed to gracefully shutdown, killing the process...");
-                            stoppedProcess.Kill();
-                        }
-
-                        stoppedProcess.Close();
-                    });
-                }
-            }
-            else
-            {
-                stoppedProcess.Close();
-                Log(LogType.Info, "Released compiler resources");
-            }
-
-            _messageBrokerService.OnMessageReceived -= OnMessageReceived;
-            _messageBrokerService.Stop();
-            _messageBrokerService = null;
-
-            ExpireFileCache();
         }
 
         private void OnMessageReceived(CompilerMessage message)
@@ -492,6 +426,73 @@ namespace Oxide.CSharp
             Interface.Oxide.NextTick(ResetIdleTimer);
         }
 
+        internal void Stop(bool synchronous, string reason)
+        {
+            _ready = false;
+            Process stoppedProcess = _compilerProcess;
+            if (stoppedProcess == null)
+            {
+                return;
+            }
+
+            _compilerProcess = null;
+            stoppedProcess.Exited -= OnCompilerProcessExited;
+            stoppedProcess.Refresh();
+
+            if (!string.IsNullOrEmpty(reason))
+            {
+                Interface.Oxide.LogInfo($"Shutting down compiler because {reason}");
+            }
+
+            if (!stoppedProcess.HasExited)
+            {
+                _messageBrokerService.SendShutdownMessage();
+
+                if (synchronous)
+                {
+                    if (stoppedProcess.WaitForExit(10000))
+                    {
+                        Interface.Oxide.LogInfo("Compiler shutdown completed");
+                    }
+                    else
+                    {
+                        Interface.Oxide.LogWarning("Compiler failed to gracefully shutdown, killing the process...");
+                        stoppedProcess.Kill();
+                    }
+
+                    stoppedProcess.Close();
+                }
+                else
+                {
+                    ThreadPool.QueueUserWorkItem(_ =>
+                    {
+                        if (stoppedProcess.WaitForExit(10000))
+                        {
+                            Interface.Oxide.LogInfo("Compiler shutdown completed");
+                        }
+                        else
+                        {
+                            Interface.Oxide.LogWarning("Compiler failed to gracefully shutdown, killing the process...");
+                            stoppedProcess.Kill();
+                        }
+
+                        stoppedProcess.Close();
+                    });
+                }
+            }
+            else
+            {
+                stoppedProcess.Close();
+                Log(LogType.Info, "Released compiler resources");
+            }
+
+            _messageBrokerService.OnMessageReceived -= OnMessageReceived;
+            _messageBrokerService.Stop();
+            _messageBrokerService = null;
+
+            ExpireFileCache();
+        }
+
         private void OnError(Exception exception) => OnCompilerFailed($"Compiler threw a error: {exception}");
 
         private void OnCompilerProcessExited(object sender, EventArgs eventArgs)
@@ -602,7 +603,7 @@ namespace Oxide.CSharp
             CompilerData compilerData = new CompilerData
             {
                 OutputFile = compilation.name,
-                SourceFiles = sourceFiles.ToArray(),
+                SourceFiles = sourceFiles,
                 ReferenceFiles = compilation.references.Values.ToArray(),
                 Preprocessor = _preprocessor,
                 Debug = Debugger.IsAttached,
@@ -637,6 +638,7 @@ namespace Oxide.CSharp
 
                 compilation.Completed();
             }
+
             _compilations.Clear();
         }
 
@@ -646,14 +648,16 @@ namespace Oxide.CSharp
             {
                 case PlatformID.Unix:
                 case PlatformID.MacOSX:
+                {
                     break;
-
+                }
                 default:
+                {
                     return true;
+                }
             }
 
             string name = Path.GetFileName(filePath);
-
             try
             {
                 if (Syscall.access(filePath, AccessModes.X_OK) == 0)
@@ -675,6 +679,7 @@ namespace Oxide.CSharp
             {
                 Interface.Oxide.LogException($"Could not set {filePath} as executable, please set manually", ex);
             }
+
             return false;
         }
 
@@ -804,23 +809,28 @@ namespace Oxide.CSharp
                 switch (statusCode)
                 {
                     case 304:
+                    {
                         newerFound = false;
                         return true;
-
+                    }
                     case 200:
+                    {
                         break;
-
+                    }
                     default:
+                    {
                         if (current <= retries)
                         {
                             current++;
                             Thread.Sleep(1000);
-                            return TryDownload(url, retries, ref current, lastModified, out data, out code, out newerFound, ref md5);
+                            return TryDownload(url, retries, ref current, lastModified, out data, out code,
+                                out newerFound, ref md5);
                         }
                         else
                         {
                             return false;
                         }
+                    }
                 }
 
                 MemoryStream fs = new MemoryStream();
