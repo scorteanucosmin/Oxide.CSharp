@@ -116,18 +116,20 @@ namespace Oxide.Plugins
                     foreach (string filename in CSharpPluginLoader.PluginReferences)
                     {
                         bool added = true;
+                        string fileNameExe = $"{filename}.exe";
+                        string fileNameDll = $"{filename}.dll";
                         //Interface.Oxide.RootLogger.WriteDebug(LogType.Info, Logging.LogEvent.Compile, "CSharp", $"Adding default reference: {filename}");
-                        if (File.Exists(Path.Combine(Interface.Oxide.ExtensionDirectory, filename + ".dll")))
+                        if (File.Exists(Path.Combine(Interface.Oxide.ExtensionDirectory, fileNameDll)))
                         {
-                            references[filename + ".dll"] = CompilerFile.CachedReadFile(Interface.Oxide.ExtensionDirectory, filename + ".dll");
+                            references[fileNameDll] = CompilerFile.CachedReadFile(Interface.Oxide.ExtensionDirectory, fileNameDll);
                         }
-                        else if (File.Exists(Path.Combine(Interface.Oxide.ExtensionDirectory, filename + ".exe")))
+                        else if (File.Exists(Path.Combine(Interface.Oxide.ExtensionDirectory, fileNameExe)))
                         {
-                            references[filename + ".exe"] = CompilerFile.CachedReadFile(Interface.Oxide.ExtensionDirectory, filename + ".exe");
+                            references[fileNameExe] = CompilerFile.CachedReadFile(Interface.Oxide.ExtensionDirectory, fileNameExe);
                         }
-                        else if (File.Exists(Path.Combine(Interface.Oxide.RootDirectory, filename + ".exe")))
+                        else if (File.Exists(Path.Combine(Interface.Oxide.RootDirectory, fileNameExe)))
                         {
-                            references[filename + ".exe"] = CompilerFile.CachedReadFile(Interface.Oxide.RootDirectory, filename + ".exe");
+                            references[fileNameExe] = CompilerFile.CachedReadFile(Interface.Oxide.RootDirectory, fileNameExe);
                         }
                         else
                         {
