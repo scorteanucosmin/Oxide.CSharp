@@ -311,8 +311,13 @@ namespace Oxide.Plugins
                     foreach (CompilablePlugin plugin in compilation.plugins)
                     {
                         plugin.OnCompilationFailed();
+                        HashSet<string> pluginErrors = GetPluginErrors(plugin.Name);
+                        foreach (string error in plugin.CompilerErrors)
+                        {
+                            pluginErrors.Add(error);
+                        }
+                       
                         string errors = plugin.CompilerErrors.JoinValues(Environment.NewLine);
-                        GetPluginErrors(plugin.Name).Add($"Failed to compile:{Environment.NewLine}{errors}");
                         Interface.Oxide.LogError($"Error while compiling {plugin.ScriptName}:{Environment.NewLine}{errors}");
                     }
 
@@ -332,8 +337,13 @@ namespace Oxide.Plugins
                         if (plugin.CompilerErrors.Count > 0)
                         {
                             plugin.OnCompilationFailed();
+                            HashSet<string> pluginErrors = GetPluginErrors(plugin.Name);
+                            foreach (string error in plugin.CompilerErrors)
+                            {
+                                pluginErrors.Add(error);
+                            }
+                       
                             string errors = plugin.CompilerErrors.JoinValues(Environment.NewLine);
-                            GetPluginErrors(plugin.Name).Add($"Failed to compile:{Environment.NewLine}{errors}");
                             Interface.Oxide.LogError($"Error while compiling {plugin.ScriptName}:{Environment.NewLine}{errors}");
                             continue;
                         }
