@@ -139,6 +139,8 @@ namespace Oxide.Plugins
             if (LastGoodAssembly == null)
             {
                 Interface.Oxide.LogInfo("No previous version to rollback plugin: {0}", ScriptName);
+                // TODO: Plugins that compiled but failed to load properly are still in the loaded state
+                // Interface.Oxide.UnloadPlugin(ScriptName);
                 return;
             }
             if (CompiledAssembly == LastGoodAssembly)

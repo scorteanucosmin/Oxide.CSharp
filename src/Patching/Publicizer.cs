@@ -23,10 +23,7 @@ namespace Oxide.CSharp.Patching
         // [IsSpecialName(InverseCheck = false)]
         [HasAttribute("CompilerGeneratedAttribute", StringValidationType.EndsWith, InverseCheck = true)]
         [HasAttribute("CompilerServices.ExtensionAttribute", StringValidationType.EndsWith, InverseCheck = true)]
-        protected override bool OnMemberDefinition(IMemberDefinition member)
-        {
-            return base.OnMemberDefinition(member);
-        }
+        protected override bool OnMemberDefinition(IMemberDefinition member) => base.OnMemberDefinition(member);
 
         protected override bool OnTypeDefinition(TypeDefinition type)
         {

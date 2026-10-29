@@ -53,10 +53,8 @@ namespace Oxide.Plugins
             extensionNames = Interface.Oxide.GetAllExtensions().Select(ext => ext.Name).ToArray();
         }
 
-        internal void Started()
-        {
+        internal void Started() =>
             name = (plugins.Count < 2 ? plugins.First().Name : "plugins_") + Math.Round(Interface.Oxide.Now * 10000000f) + ".dll";
-        }
 
         internal void Completed(byte[]? rawAssembly = null, byte[]? symbols = null)
         {
