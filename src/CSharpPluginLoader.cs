@@ -36,6 +36,8 @@ namespace Oxide.Plugins
             _compiler = new CompilerService(extension);
         }
 
+        internal static IEnumerable<CompilablePlugin> CompilablePlugins => plugins.Values;
+
         public static CompilablePlugin GetCompilablePlugin(string directory, string name)
         {
             string className = Regex.Replace(name, "_", "");

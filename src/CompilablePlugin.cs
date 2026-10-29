@@ -103,7 +103,12 @@ namespace Oxide.Plugins
 
                 if (!CompiledAssembly.IsBatch)
                 {
+                    CompiledAssembly? replaced = LastGoodAssembly;
                     LastGoodAssembly = CompiledAssembly;
+                    if (replaced != LastGoodAssembly)
+                    {
+                        replaced?.ReleaseIfUnused();
+                    }
                 }
 
                 callback?.Invoke(plugin);
@@ -149,7 +154,9 @@ namespace Oxide.Plugins
                 return;
             }
             Interface.Oxide.LogInfo("Rolling back plugin to last good version: {0}", ScriptName);
+            CompiledAssembly? failed = CompiledAssembly;
             CompiledAssembly = LastGoodAssembly;
+            failed?.ReleaseIfUnused();
             CompilerErrors.Clear();
             LoadPlugin();
         }

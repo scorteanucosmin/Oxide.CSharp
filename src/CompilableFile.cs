@@ -103,7 +103,9 @@ namespace Oxide.Plugins
             timeoutTimer = null;
             IsCompilationNeeded = false;
             CompilationQueuedAt = 0f;
+            CompiledAssembly? replaced = CompiledAssembly;
             CompiledAssembly = compiledAssembly;
+            replaced?.ReleaseIfUnused();
             CompileCallback?.Invoke(true);
         }
 

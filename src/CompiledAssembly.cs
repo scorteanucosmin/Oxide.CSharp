@@ -27,6 +27,7 @@ namespace Oxide.Plugins
         public byte[] PatchedSymbols;
         public float Duration;
         public Assembly LoadedAssembly;
+        private PluginLoadContext? loadContext;
         public bool IsLoading;
         public bool IsBatch => CompilablePlugins.Length > 1;
 
@@ -73,7 +74,7 @@ namespace Oxide.Plugins
                     return;
                 }
 
-                LoadedAssembly = Assembly.Load(assembly, symbols);
+                loadContext = PluginLoadContext.Load(Name, assembly, symbols, out LoadedAssembly);
                 isLoaded = true;
 
                 foreach (Action<bool> loadingCallbacks in loadCallbacks)
@@ -209,6 +210,18 @@ namespace Oxide.Plugins
                     });
                 }
             });
+        }
+
+        internal void ReleaseIfUnused()
+        {
+            if (loadContext == null || CSharpPluginLoader.CompilablePlugins.Any(plugin => plugin.CompiledAssembly == this || plugin.LastGoodAssembly == this))
+            {
+                return;
+            }
+
+            Interface.Oxide.RootLogger.WriteDebug(LogType.Info, LogEvent.Compile, "CSharp", $"Releasing replaced assembly {Name} ({PluginNames.ToSentence()})");
+            loadContext.Release();
+            loadContext = null;
         }
 
         public bool IsOutdated() => CompilablePlugins.Any(pl => pl.GetLastModificationTime() != CompiledAt);
