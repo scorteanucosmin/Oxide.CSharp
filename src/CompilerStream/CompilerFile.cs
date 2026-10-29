@@ -9,7 +9,7 @@ namespace Oxide.CSharp.CompilerStream
     public class CompilerFile
     {
         public string Name { get; set; }
-        public byte[] Data { get; set; }
+        public byte[]? Data { get; set; }
 
         [NonSerialized]
         internal DateTime LastRead;
@@ -44,10 +44,15 @@ namespace Oxide.CSharp.CompilerStream
 
             if (data == null && File.Exists(fullPath))
             {
-                data = Patcher.Run(File.ReadAllBytes(fullPath), out isPatched);
+                byte[] original = File.ReadAllBytes(fullPath);
+                data = Patcher.Run(original, out isPatched);
+                if (!isPatched)
+                {
+                    data = null;
+                    fileName = fullPath;
+                }
             }
-
-            if (data == null)
+            else if (data == null)
             {
                 return null;
             }
@@ -63,7 +68,7 @@ namespace Oxide.CSharp.CompilerStream
             return file;
         }
 
-        internal CompilerFile(string name, byte[] data)
+        internal CompilerFile(string name, byte[]? data)
         {
             Name = name;
             Data = data;

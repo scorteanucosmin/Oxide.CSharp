@@ -202,7 +202,8 @@ namespace Oxide.CSharp
 
             Stop(false, "starting new process");
             _startTime = Interface.Oxide.Now;
-            string args = Constants.CompilerBasicArguments + $" --parent {Process.GetCurrentProcess().Id} --pipe {_pipeName} -l:file \"{Path.Combine(Interface.Oxide.LogDirectory, $"oxide.compiler_{DateTime.Now:yyyy-MM-dd}.log")}\"";
+            string args = Constants.CompilerBasicArguments + $" --parent {Environment.ProcessId} --pipe {_pipeName} -l:file \"{Path.Combine(Interface.Oxide.LogDirectory, $"oxide.compiler_{DateTime.Now:yyyy-MM-dd}.log")}\"" +
+                $" --Compiler:FrameworkPath \"{References.RuntimeDirectory}\"";
 #if DEBUG
             args += " -v debug";
 #endif
@@ -592,6 +593,7 @@ namespace Oxide.CSharp
                     ReferenceFiles = compilation.references.Values.ToArray(),
                     Preprocessor = _preprocessor,
                     Debug = Debugger.IsAttached,
+                    StdLib = true,
                 };
 
                 CompilerMessage compilerMessage = new()
