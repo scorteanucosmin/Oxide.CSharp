@@ -94,8 +94,16 @@ namespace Oxide.CSharp
             HashSet<string> preprocessors = new()
             {
                 "OXIDE",
-                "OXIDEMOD"
+                "OXIDEMOD",
+                "NET",
+                "NETCOREAPP",
+                $"NET{Environment.Version.Major}_0",
+                "CORECLR"
             };
+            for (int major = 5; major <= Environment.Version.Major; major++)
+            {
+                preprocessors.Add($"NET{major}_0_OR_GREATER");
+            }
 
             IEnumerable<Extension> extensions = Interface.Oxide.GetAllExtensions();
 
