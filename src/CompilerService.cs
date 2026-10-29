@@ -15,7 +15,6 @@ using Oxide.CSharp.CompilerStream;
 using Oxide.Logging;
 using Oxide.Plugins;
 using Oxide.Pooling;
-using References::Mono.Unix.Native;
 using System.Text.Json;
 
 namespace Oxide.CSharp
@@ -639,34 +638,22 @@ namespace Oxide.CSharp
 
         private static bool SetFilePermissions(string filePath)
         {
-            switch (Environment.OSVersion.Platform)
+            if (OperatingSystem.IsWindows())
             {
-                case PlatformID.Unix:
-                case PlatformID.MacOSX:
-                {
-                    break;
-                }
-                default:
-                {
-                    return true;
-                }
+                return true;
             }
 
             string name = Path.GetFileName(filePath);
             try
             {
-                if (Syscall.access(filePath, AccessModes.X_OK) == 0)
+                UnixFileMode mode = File.GetUnixFileMode(filePath);
+                if ((mode & UnixFileMode.UserExecute) != 0)
                 {
                     Log(LogType.Info, $"{name} is executable");
+                    return true;
                 }
-            }
-            catch (Exception exception)
-            {
-                Interface.Oxide.LogException($"Unable to check {name} for executable permission", exception);
-            }
-            try
-            {
-                Syscall.chmod(filePath, FilePermissions.S_IRWXU);
+
+                File.SetUnixFileMode(filePath, mode | UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
                 Interface.Oxide.LogInfo($"File permissions set for {name}");
                 return true;
             }
