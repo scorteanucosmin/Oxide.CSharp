@@ -4,9 +4,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.Cache;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using Oxide.CompilerServices;
@@ -33,7 +30,6 @@ namespace Oxide.CSharp
         private Core.Libraries.Timer.TimerInstance _idleTimer;
         private MessageBrokerService? _messageBrokerService;
         private readonly string _filePath;
-        private string _remoteName;
         private float _startTime;
         private HashSet<string> _preprocessor;
         private readonly string _pipeName;
@@ -46,26 +42,13 @@ namespace Oxide.CSharp
             _filePath = Path.Combine(Interface.Oxide.RootDirectory, $"Oxide.Compiler");
             _pipeName = $"Oxide.Compiler.{Guid.NewGuid()}";
 
-            string downloadUrl = string.Format(Constants.CompilerDownloadUrl, extension.Branch);
-            switch (Environment.OSVersion.Platform)
+            if (OperatingSystem.IsWindows())
             {
-                case PlatformID.Win32NT:
-                case PlatformID.Win32S:
-                case PlatformID.Win32Windows:
-                {
-                    _filePath += ".exe";
-                    _remoteName = downloadUrl + $"win-x64.AOT.Compiler.exe";
-                    break;
-                }
-                case PlatformID.Unix:
-                {
-                    _remoteName = downloadUrl + "linux-x64.Compiler";
-                    break;
-                }
-                case PlatformID.MacOSX:
-                {
-                    throw new PlatformNotSupportedException("macOS is not supported for the compiler");
-                }
+                _filePath += ".exe";
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                throw new PlatformNotSupportedException("macOS is not supported for the compiler");
             }
 
             EnvironmentHelper.SetVariable("Path:Root", Interface.Oxide.RootDirectory);
@@ -175,12 +158,11 @@ namespace Oxide.CSharp
             Log(LogType.Debug, $"Preprocessors are: {_preprocessor.JoinValues(", ")}");
 #endif
 
-#if !DEBUG
-            if (!DownloadFile(_remoteName, _filePath))
+            if (!File.Exists(_filePath))
             {
+                Interface.Oxide.LogError($"[CSharp] Compiler not found at {_filePath}");
                 return false;
             }
-#endif
 
             return SetFilePermissions(_filePath);
         }
@@ -696,202 +678,6 @@ namespace Oxide.CSharp
             return false;
         }
 
-        private static bool DownloadFile(string url, string path, int retries = 3)
-        {
-            string fileName = Path.GetFileName(path);
-            int retry = 0;
-            string md5 = null;
-            try
-            {
-                DateTime? last = null;
-                if (File.Exists(path))
-                {
-                    md5 = GenerateFileHash(path);
-                    last = File.GetLastWriteTimeUtc(path);
-                    string msg = $"[CSharp] Checking for updates for {fileName} | Local MD5: {md5}";
-
-                    if (last.HasValue)
-                    {
-                        msg += $" | Last modified: {last.Value:yyyy-MM-dd HH:mm:ss}";
-                    }
-
-                    Interface.Oxide.LogInfo(msg);
-                }
-                else
-                {
-                    Interface.Oxide.LogInfo($"[CSharp] Downloading {fileName}. . .");
-                }
-
-                if (!TryDownload(url, retries, ref retry, last, out byte[] data, out int code, out bool newerFound, ref md5))
-                {
-                    string attemptVerb = retries == 1 ? "attempt" : "attempts";
-                    Interface.Oxide.LogError($"[CSharp] Failed to download {fileName} after {retry} {attemptVerb} with response code '{code}', please manually download it from {url} and save it here {path}");
-                    return false;
-                }
-
-                if (data != null)
-                {
-                    using (FileStream fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None))
-                    {
-                        fs.Write(data, 0, data.Length);
-                    }
-
-                    if (newerFound)
-                    {
-                        string checkVerb = md5 != null ? $"Remote MD5: {md5}" : "Newer found";
-                        Interface.Oxide.LogInfo($"[CSharp] Downloaded newer version of {fileName} | {checkVerb}");
-                    }
-                    else
-                    {
-                        Interface.Oxide.LogInfo($"[CSharp] Downloaded {fileName}");
-                    }
-                }
-                else
-                {
-                    Interface.Oxide.LogInfo($"[CSharp] {fileName} is up to date");
-                }
-
-                return true;
-            }
-            catch (Exception exception)
-            {
-                Interface.Oxide.LogException($"Unexpected error occurred while trying to download {fileName}, please manually download it from {url} and save it here {path}", exception);
-                return false;
-            }
-        }
-
-        private static bool TryDownload(string url, int retries, ref int current, DateTime? lastModified, out byte[] data, out int code, out bool newerFound, ref string md5)
-        {
-            newerFound = true;
-            data = null;
-            code = -1;
-            try
-            {
-                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                request.AllowAutoRedirect = true;
-                request.CachePolicy = new RequestCachePolicy(RequestCacheLevel.NoCacheNoStore);
-
-                if (!string.IsNullOrEmpty(md5))
-                {
-                    string md5msg = $"Validating checksum with server for {Path.GetFileName(url)} | Local: {md5}";
-                    int md5retries = 0;
-                    string servermd5 = null;
-                    if (TryDownload(url + ".md5", retries, ref md5retries, null, out byte[] md5data, out int md5code, out bool _, ref servermd5) && md5code == 200)
-                    {
-
-                        servermd5 = Encoding.UTF8.GetString(md5data).Trim();
-
-                        if (string.IsNullOrEmpty(servermd5))
-                        {
-                            servermd5 = "N/A";
-                        }
-
-                        md5msg += $" | Server: {servermd5}";
-
-                        if (servermd5.Equals(md5, StringComparison.InvariantCultureIgnoreCase))
-                        {
-                            md5 = servermd5;
-                            newerFound = false;
-                            md5msg += " | Match!";
-                            Log(LogType.Debug, md5msg);
-                            return true;
-                        }
-
-                        md5 = servermd5;
-                        md5msg += " | No Match!";
-                        Log(LogType.Warning, md5msg);
-                    }
-                    else if (lastModified.HasValue)
-                    {
-                        md5 = null;
-                        Log(LogType.Warning, $"Failed to download {url}.md5 after {md5retries} attempts with response code '{md5code}', using last modified date instead");
-                        request.IfModifiedSince = lastModified.Value;
-                    }
-                }
-                else if (lastModified.HasValue)
-                {
-                    request.IfModifiedSince = lastModified.Value;
-                }
-
-                HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-                int statusCode = (int)response.StatusCode;
-                code = statusCode;
-                switch (statusCode)
-                {
-                    case 304:
-                    {
-                        newerFound = false;
-                        return true;
-                    }
-                    case 200:
-                    {
-                        break;
-                    }
-                    default:
-                    {
-                        if (current <= retries)
-                        {
-                            current++;
-                            Thread.Sleep(1000);
-                            return TryDownload(url, retries, ref current, lastModified, out data, out code,
-                                out newerFound, ref md5);
-                        }
-                        else
-                        {
-                            return false;
-                        }
-                    }
-                }
-
-                MemoryStream fs = new MemoryStream();
-                Stream stream = response.GetResponseStream();
-                int bufferSize = 10000;
-                byte[] buffer = new byte[bufferSize];
-                while (true)
-                {
-                    int result = stream.Read(buffer, 0, bufferSize);
-                    if (result == -1 || result == 0)
-                    {
-                        break;
-                    }
-
-                    fs.Write(buffer, 0, result);
-                }
-                data = fs.ToArray();
-                fs.Close();
-                stream.Close();
-                response.Close();
-
-                return true;
-            }
-            catch (WebException webex)
-            {
-                if (webex.Response != null)
-                {
-                    HttpWebResponse r = (HttpWebResponse)webex.Response;
-                    code = (int)r.StatusCode;
-                    switch (r.StatusCode)
-                    {
-                        case HttpStatusCode.NotModified:
-                            newerFound = false;
-                            return true;
-                        default:
-                            if (current <= retries)
-                            {
-                                current++;
-                                Thread.Sleep(1000);
-                                return TryDownload(url, retries, ref current, lastModified, out data, out code, out newerFound, ref md5);
-                            }
-                            else
-                            {
-                                return false;
-                            }
-                    }
-                }
-            }
-            return false;
-        }
-
         private static void Log(LogType type, string message, Exception exception = null) =>
             Interface.Oxide.RootLogger.WriteDebug(type, LogEvent.Compile, "CSharp", message, exception);
 
@@ -904,15 +690,6 @@ namespace Oxide.CSharp
 
             FileVersionInfo version = FileVersionInfo.GetVersionInfo(_filePath);
             return version.FileVersion;
-        }
-
-        private static string GenerateFileHash(string file)
-        {
-            using (MD5 md5 = MD5.Create())
-            using (FileStream stream = File.OpenRead(file))
-            {
-                return BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", string.Empty).ToLowerInvariant();
-            }
         }
 
         /// <summary>

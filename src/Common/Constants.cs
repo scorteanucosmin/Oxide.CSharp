@@ -10,7 +10,6 @@ namespace Oxide.CSharp.Common
     {
         internal static readonly UTF8Encoding CompilerEncoding = new(false);
 
-        internal const string CompilerDownloadUrl = "https://downloads.oxidemod.com/artifacts/Oxide.Compiler/{0}/";
         internal const string CompilerBasicArguments = "-unsafe true --setting:Force true -ms true";
         internal const string OxideNamespace = "namespace Oxide.Plugins";
         internal const string UmodNamespace = "namespace uMod.Plugins";
