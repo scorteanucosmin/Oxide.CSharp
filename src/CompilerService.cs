@@ -186,25 +186,9 @@ namespace Oxide.CSharp
                 return true;
             }
 
-            try
+            if (!File.Exists(_filePath))
             {
-                int attempts = 0;
-                while (!File.Exists(_filePath))
-                {
-                    attempts++;
-                    if (attempts > 3)
-                    {
-                        throw new IOException($"Compiler failed to download after 3 attempts");
-                    }
-
-                    Log(LogType.Error, $"Compiler doesn't exist at {_filePath}, attempting to download again | Attempt: {attempts} of 3");
-                    Precheck();
-                    Thread.Sleep(100);
-                }
-            }
-            catch (Exception exception)
-            {
-                Log(LogType.Error, exception.Message);
+                Log(LogType.Error, $"Compiler doesn't exist at {_filePath}");
                 return false;
             }
 
@@ -602,6 +586,7 @@ namespace Oxide.CSharp
                     Preprocessor = _preprocessor,
                     Debug = Debugger.IsAttached,
                     StdLib = true,
+                    IgnoreAccessChecksTo = References.AccessibleAssemblies(compilation.references.Values),
                 };
 
                 CompilerMessage compilerMessage = new()

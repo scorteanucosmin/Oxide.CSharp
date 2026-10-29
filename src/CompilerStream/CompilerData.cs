@@ -19,6 +19,7 @@ namespace Oxide.CSharp.CompilerStream
         public string Encoding { get; set; }
         public bool Debug { get; set; }
         public HashSet<string> Preprocessor { get; set; }
+        public string[] IgnoreAccessChecksTo { get; set; }
 
         public CompilerData()
         {
@@ -30,6 +31,7 @@ namespace Oxide.CSharp.CompilerStream
             SdkVersion = "2";
             Encoding = System.Text.Encoding.UTF8.WebName;
             Debug = false;
+            IgnoreAccessChecksTo = Array.Empty<string>();
         }
     }
 }
