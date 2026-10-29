@@ -1,4 +1,3 @@
-extern alias References;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,8 +10,8 @@ using Oxide.Core.Logging;
 using Oxide.CSharp;
 using Oxide.CSharp.Common;
 using Oxide.Logging;
-using References::Mono.Cecil;
-using References::Mono.Cecil.Cil;
+using Mono.Cecil;
+using Mono.Cecil.Cil;
 
 namespace Oxide.Plugins
 {

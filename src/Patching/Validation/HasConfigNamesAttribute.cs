@@ -1,5 +1,3 @@
-extern alias References;
-
 using Oxide.Core;
 
 namespace Oxide.CSharp.Patching.Validation

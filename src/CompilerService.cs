@@ -1,4 +1,3 @@
-extern alias References;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -20,7 +19,7 @@ using Oxide.Logging;
 using Oxide.Plugins;
 using Oxide.Pooling;
 using References::Mono.Unix.Native;
-using References::System.Text.Json;
+using System.Text.Json;
 
 namespace Oxide.CSharp
 {

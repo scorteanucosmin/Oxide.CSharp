@@ -1,6 +1,4 @@
-extern alias References;
-
-using References::Mono.Cecil;
+using Mono.Cecil;
 
 namespace Oxide.CSharp.Patching.Validation
 {

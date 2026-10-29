@@ -1,4 +1,3 @@
-extern alias References;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,7 +11,7 @@ using Oxide.CSharp.Common;
 using Oxide.CSharp.CompilerStream;
 using Oxide.Logging;
 using Oxide.Pooling;
-using References::Mono.Cecil;
+using Mono.Cecil;
 
 namespace Oxide.Plugins
 {
@@ -118,10 +117,12 @@ namespace Oxide.Plugins
                         string fileNameDll = $"{filename}.dll";
                         //Interface.Oxide.RootLogger.WriteDebug(LogType.Info, Logging.LogEvent.Compile, "CSharp", $"Adding default reference: {filename}");
                         if (File.Exists(Path.Combine(Interface.Oxide.ExtensionDirectory, fileNameDll)))
+                        if (References.FindDirectory(fileNameDll) is string dllDirectory)
                         {
                             references[fileNameDll] = CompilerFile.CachedReadFile(Interface.Oxide.ExtensionDirectory, fileNameDll);
                         }
                         else if (File.Exists(Path.Combine(Interface.Oxide.ExtensionDirectory, fileNameExe)))
+                        else if (References.FindDirectory(fileNameExe) is string exeDirectory)
                         {
                             references[fileNameExe] = CompilerFile.CachedReadFile(Interface.Oxide.ExtensionDirectory, fileNameExe);
                         }
@@ -392,6 +393,7 @@ namespace Oxide.Plugins
         {
             string path = Path.Combine(Interface.Oxide.ExtensionDirectory, $"{assemblyNameString}.dll");
             if (!File.Exists(path))
+            string? path = References.Find($"{assemblyNameString}.dll");
             {
                 if (assemblyNameString.StartsWith("Oxide."))
                 {
@@ -432,6 +434,7 @@ namespace Oxide.Plugins
                 string referenceString = $"{reference.Name}.dll";
                 string referencePath = Path.Combine(Interface.Oxide.ExtensionDirectory, referenceString);
                 if (!File.Exists(referencePath))
+                if (References.Find(referenceString) == null)
                 {
                     Interface.Oxide.LogWarning($"Reference {reference.Name}.dll from {assemblyName}.dll not found");
                     continue;
@@ -449,6 +452,7 @@ namespace Oxide.Plugins
                     $"{reference} has been added as a reference");
 
                 references[referenceString] = CompilerFile.CachedReadFile(Interface.Oxide.ExtensionDirectory, referenceString);
+                references[referenceString] = CompilerFile.CachedReadFile(References.FindDirectory(referenceString)!, referenceString);
             }
 
             plugin.References.Add(reference);

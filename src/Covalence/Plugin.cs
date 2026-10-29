@@ -1,11 +1,10 @@
-extern alias References;
 using System;
 using System.Reflection;
 using Oxide.Core;
 using Oxide.Core.Libraries.Covalence;
 using Oxide.Core.Plugins;
 using Oxide.CSharp.Common;
-using References::Cysharp.Text;
+using Cysharp.Text;
 
 namespace Oxide.Plugins
 {

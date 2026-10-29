@@ -1,7 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project>
-  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
-  <Import Project="..\netfx.props" />
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Version>2.0.0</Version>
     <AssemblyName>Oxide.CSharp</AssemblyName>
@@ -12,18 +9,16 @@
     <PackageIconUrl>icon.png</PackageIconUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
-    <TargetFrameworks>net48;netstandard2.0;netstandard2.1</TargetFrameworks>
-    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <NoWarn>NU1701</NoWarn>
-    <LangVersion>14</LangVersion>
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Oxide.Common" Version="3.2.1" />
-    <PackageReference Include="Oxide.Core" Version="2.0.4152-develop" />
-    <PackageReference Include="Oxide.References" Version="2.0.3809-develop">
-      <PrivateAssets>contentfiles;analyzers;build</PrivateAssets>
-    </PackageReference>
+    <ProjectReference Include="$(OxideRoot)Oxide.Common\src\Oxide.Common.csproj" Private="false" />
+    <ProjectReference Include="$(OxideRoot)Oxide.Core\src\Oxide.Core.csproj" Private="false" />
+    <Reference Include="Mono.Cecil" HintPath="$(RustManagedDir)Mono.Cecil.dll" Private="false" />
+    <Reference Include="Mono.Cecil.Rocks" HintPath="$(RustManagedDir)Mono.Cecil.Rocks.dll" Private="false" />
+    <Reference Include="Newtonsoft.Json" HintPath="$(RustManagedDir)Newtonsoft.Json.dll" Private="false" />
+    <Reference Include="ZString" HintPath="$(RustManagedDir)ZString.dll" Private="false" />
+    <Reference Include="0Harmony" HintPath="$(RustServerDir)RustDedicated_Data\Managed\0Harmony.dll" Private="false" />
     <None Include="..\resources\icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
   <Target Name="AddGitMetadaAssemblyAttributes" BeforeTargets="CoreGenerateAssemblyInfo">
@@ -35,14 +30,6 @@
         <_Parameter1>GitBranch</_Parameter1>
         <_Parameter2>$(GitBranch)</_Parameter2>
       </AssemblyAttribute>
-    </ItemGroup>
-  </Target>
-  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
-  <Target Name="ChangeAliasesOfStrongNameAssemblies" BeforeTargets="FindReferenceAssembliesForReferences;ResolveReferences">
-    <ItemGroup>
-      <ReferencePath Condition="'%(FileName)' == 'Oxide.References'">
-        <Aliases>References</Aliases>
-      </ReferencePath>
     </ItemGroup>
   </Target>
 </Project>

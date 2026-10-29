@@ -1,13 +1,12 @@
-extern alias References;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Oxide.Core.Plugins;
 using Oxide.CSharp.Common;
 using Oxide.Pooling;
-using References::Mono.Cecil;
-using References::Mono.Cecil.Cil;
-using References::Mono.Cecil.Rocks;
+using Mono.Cecil;
+using Mono.Cecil.Cil;
+using Mono.Cecil.Rocks;
 
 namespace Oxide.Core.CSharp
 {
